@@ -435,6 +435,9 @@
      'review-next-submission
      review-next-submission
      (λ ()
+       (when (get 'cancel-review #f)
+         (put 'cancel-review #f)
+         (fail 'cancel-review))
        (when (not (empty? (get 'current-submissions)))
          (put 'current-submissions (cdr (get 'current-submissions)))
          (put 'n-reviewed-submissions (add1 (get 'n-reviewed-submissions))))
@@ -609,6 +612,11 @@
    the-study-name
    #:provides '()
    #:requires '()
+   #:failure-handler (λ (s reason)
+                       (eprintf "failed at ~e with reason ~e~n" s reason)
+                       (case reason
+                         [(cancel-review) 'admin]
+                         [else (fail reason)]))
    (list
     (make-step 'admin submissions-admin-handler (λ () 'admin))
     (make-step/study
@@ -759,7 +767,10 @@
                    (hash-set 'clear-presentation clear-presentation/n)
                    (hash-set 'clear-presentation-explanation clear-presentation-explanation)
                    (hash-set 'score (+ genuine-attempt/n where-got-stuck/n clear-presentation/n)))
-               (get 'reviews '())))))))))]
+               (get 'reviews '()))))))
+            (button (λ ()
+                      (put 'cancel-review #t))
+                    "Cancel Review"))))]
         [else
          (skip)]))
 
