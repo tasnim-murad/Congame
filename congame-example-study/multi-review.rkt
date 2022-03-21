@@ -340,6 +340,7 @@
    #:requires '()
    #:provides '()
    #:failure-handler (λ (_s e)
+                       (displayln "review-study failure-handler")
                        (case e
                          [(not-in-review-phase-anymore)
                           (update-reviews)
@@ -634,6 +635,11 @@
    the-study-name
    #:provides '()
    #:requires '()
+   #:failure-handler (λ (_step reason)
+                       (displayln (format "Failure reason: ~a" reason))
+                       (case reason
+                         [(admin-cancel-review) 'admin]
+                         [else (fail reason)]))
    (list
     (make-step 'admin submissions-admin-handler (λ () 'admin))
     (make-step/study
@@ -712,6 +718,17 @@
                    (hash-set 'how-good-is-the-submission how-good-is-the-submission))
                (get 'reviews '()))))))))))
 
+(define (display-admin-cancel-button)
+  (if (current-participant-owner?)
+      (haml
+       (:div
+        (button
+         (λ ()
+           (fail 'admin-cancel-review))
+         "Cancel")))
+      (haml
+       (:div ""))))
+
 (define (review-R-intro-pdf-handler)
   (define subs (get 'current-submissions))
   (define r (car subs))
@@ -761,7 +778,8 @@
 
          (#:clear-presentation-explanation
           (input-textarea "Explain your score on presentation in one sentence (e.g. \"I had to spend a lot of time to figure out which graph/which chunk of code belonged to which exercise\"). Suggest one (not two or five) ways to improve the submissions: pick a single concrete example from the submission and how it could have been improved. E.g. \"For exercise 4, I suggest to split the code across several lines and to add a comment why you chose the method 'gam' rather than 'lm'.\" No more than 2 sentences."))
-         (:button.button.next-button ([:type "submit"]) "Submit")))
+         (:button.button.next-button ([:type "submit"]) "Submit")
+         (display-admin-cancel-button)))
        (lambda (#:genuine-attempt genuine-attempt
                 #:genuine-attempt-explanation genuine-attempt-explanation
                 #:where-got-stuck where-got-stuck
@@ -1081,7 +1099,8 @@
          (#:quality (input-number "What overall score between 0 (lowest) and 7 (highest) would you give this proposal?"
                                   #:min 0 #:max 7))
          (#:feedback (input-textarea "Provide comments for the overall score and give at least one constructive item of feedback: a suggestion how to improve one particular aspect of the proposal."))
-         (:button.button.next-button ((:type "submit")) "Submit")))
+         (:button.button.next-button ((:type "submit")) "Submit")
+         (display-admin-cancel-button)))
        (lambda (#:one-page-limit one-page-limit
                 #:how-clear-question how-clear-question
                 #:quality quality
@@ -1243,7 +1262,8 @@
           '(("yes" . "Yes")
             ("no"  . "No"))))
         (#:feedback (input-textarea "Provide a constructive suggestion how to improve this research question / turn it into a valid research question. Remember: be kind."))
-        (:button.button.next-button ((:type "submit")) "Submit")))
+        (:button.button.next-button ((:type "submit")) "Submit")
+        (display-admin-cancel-button)))
       (lambda (#:valid-research-idea? valid-research-idea?
                #:feedback feedback)
         (put 'reviews
