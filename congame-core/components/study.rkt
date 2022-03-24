@@ -749,20 +749,23 @@ QUERY
     (define the-step (exn:fail:study-step e))
     (define the-reason (exn:fail:study-reason e))
     (set-box! (current-resume-done?) #t)
-    (displayln "Did we get here?")
-    (displayln (format "HANDLER: ~a" hdl))
-    (cond
-      [hdl
-       (displayln "Got here...")
-       (parameterize ([current-study-stack new-study-stack])
-         (define next-step-id (hdl the-step the-reason))
-         (define next-step (study-find-step s next-step-id))
+    (define res
+      (cond
+        [hdl
+         (log-study-debug "handling at ~s" (current-study-stack))
          (with-handlers ([exn:fail:study? failure-handler])
-           (run-step req s next-step)))]
-      [root?
-       (error 'run-study "fail~n  step: ~e~n  reason: ~a" the-step the-reason)]
-      [else
-       (fail the-reason the-step)]))
+           (parameterize ([current-study-stack new-study-stack])
+             (log-study-debug "new stack ~s" new-study-stack)
+             (define next-step-id (hdl the-step the-reason))
+             (define next-step (study-find-step s next-step-id))
+             (run-step req s next-step)))]
+        [root?
+         (error 'run-study "fail~n  step: ~e~n  reason: ~a" the-step the-reason)]
+        [else
+         (log-study-debug "failing at ~s" (current-study-stack))
+         (fail the-reason the-step)]))
+    (begin0 res
+      (log-study-debug "failure handler returned ~s" res)))
   (with-handlers ([exn:fail:study? failure-handler])
     (parameterize ([current-study-stack new-study-stack])
       (cond
@@ -791,7 +794,10 @@ QUERY
            (set-box! (current-resume-done?) #t))]))))
 
 (define (run-step req s the-step)
-  (log-study-debug "run step ~e for participant ~s" (step-id the-step) (current-participant-id))
+  (log-study-debug "run step ~e for participant ~s~n  stack: ~s"
+                   (step-id the-step)
+                   (current-participant-id)
+                   (current-study-stack))
   (update-participant-progress! (step-id the-step))
   (define res
     (call-with-current-continuation
